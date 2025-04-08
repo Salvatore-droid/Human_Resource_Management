@@ -8,35 +8,60 @@
         Complete Your Profile
       </h2>
     </div>
+
     {% if messages %}
+      <div class="messages">
         {% for message in messages %}
-        <div class="alert alert-info alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+          <div class="border-l-4 p-4 mb-4 {% if message.tags == 'error' %}bg-red-50 border-red-500{% elif message.tags == 'success' %}bg-green-50 border-green-500{% elif message.tags == 'warning' %}bg-yellow-50 border-yellow-500{% else %}bg-blue-50 border-blue-500{% endif %}">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <i class="bi {% if message.tags == 'error' %}bi-exclamation-circle text-red-500{% elif message.tags == 'success' %}bi-check-circle text-green-500{% elif message.tags == 'warning' %}bi-exclamation-triangle text-yellow-500{% else %}bi-info-circle text-blue-500{% endif %}"></i>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm {% if message.tags == 'error' %}text-red-700{% elif message.tags == 'success' %}text-green-700{% elif message.tags == 'warning' %}text-yellow-700{% else %}text-blue-700{% endif %}">
+                  {{ message }}
+                </p>
+              </div>
+            </div>
+          </div>
         {% endfor %}
+      </div>
     {% endif %}
 
-    <form class="mt-8 space-y-6" method="POST">
-      {% csrf_token %}
-      <div class="rounded-md shadow-sm space-y-4">
-        <div>
-          <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-          {{ form.phone_number }}
-        </div>
-        
-        <div>
-          <label for="{{ form.organization.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Organization</label>
-          {{ form.organization }}
-        </div>
+    {% if has_profile %}
+      <div class="text-center">
+        <p class="text-green-600 mb-4">Your profile is already complete!</p>
+        <a href="{% url 'dashboard' %}" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+          Go to Dashboard
+        </a>
       </div>
+    {% else %}
+      <form class="mt-8 space-y-6" method="POST">
+        {% csrf_token %}
+        <div class="rounded-md shadow-sm space-y-4">
+          <div>
+            <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+            {{ form.phone_number }}
+          </div>
+          
+          <div>
+            <label for="{{ form.organization.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+            {{ form.organization }}
+          </div>
+        </div>
 
-      <div>
-        <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
-          Complete Profile
-        </button>
-      </div>
-    </form>
+        <div class="flex space-x-4">
+          <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
+            Complete Profile
+          </button>
+          {% comment %}
+          <a href="{% url 'dashboard' %}" class="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 text-center">
+            Skip for Now
+          </a>
+          {% endcomment %}
+        </div>
+      </form>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

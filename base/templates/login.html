@@ -29,7 +29,26 @@
       </div>
     </div>
     {% endif %}
-    
+
+    {% if messages %}
+      <div class="messages">
+        {% for message in messages %}
+          <div class="border-l-4 p-4 mb-4 {% if message.tags == 'error' %}bg-red-50 border-red-500{% elif message.tags == 'success' %}bg-green-50 border-green-500{% elif message.tags == 'warning' %}bg-yellow-50 border-yellow-500{% else %}bg-blue-50 border-blue-500{% endif %}">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <i class="bi {% if message.tags == 'error' %}bi-exclamation-circle text-red-500{% elif message.tags == 'success' %}bi-check-circle text-green-500{% elif message.tags == 'warning' %}bi-exclamation-triangle text-yellow-500{% else %}bi-info-circle text-blue-500{% endif %}"></i>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm {% if message.tags == 'error' %}text-red-700{% elif message.tags == 'success' %}text-green-700{% elif message.tags == 'warning' %}text-yellow-700{% else %}text-blue-700{% endif %}">
+                  {{ message }}
+                </p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <form class="mt-8 space-y-6" method="POST" action="{% url 'login' %}">
       {% csrf_token %}
       <input type="hidden" name="remember" value="true">

@@ -11,6 +11,8 @@ from .models import *
 from .forms import InternRegistrationForm, OrganizationForm, CustomAuthenticationForm, ProfileCompletionForm
 from datetime import datetime, timedelta
 from django.contrib.auth import logout, authenticate, login
+from django.db import IntegrityError
+from django.core.exceptions import ValidationError
 
 
 
@@ -100,22 +102,57 @@ def dashboard(request):
 
 @login_required
 def profile_complete(request):
-    if hasattr(request.user, 'internprofile'):
+    has_profile = hasattr(request.user, 'internprofile')
+    
+    if has_profile and request.method == 'GET':
+        messages.info(request, "Your profile is already complete")
         return redirect('dashboard')
         
     if request.method == 'POST':
         form = ProfileCompletionForm(request.POST)
         if form.is_valid():
-            profile = form.save(commit=False)
-            profile.user = request.user
-            profile.save()
-            messages.error(request, "Profile saved successfully")
-            return redirect('dashboard')
+            try:
+                # Double-check in case of race condition
+                if hasattr(request.user, 'internprofile'):
+                    messages.warning(request, "Profile already exists")
+                    return redirect('dashboard')
+                    
+                profile = form.save(commit=False)
+                profile.user = request.user
+                
+                try:
+                    profile.full_clean()
+                    profile.save()
+                    messages.success(request, "Profile completed successfully!")
+                    return redirect('dashboard')
+                    
+                except ValidationError as e:
+                    for field, errors in e.message_dict.items():
+                        for error in errors:
+                            messages.error(request, f"{field}: {error}")
+                            
+                except IntegrityError as e:
+                    if 'base_internprofile_user_id_key' in str(e):
+                        messages.error(request, "Profile already exists for this account")
+                    else:
+                        messages.error(request, "An error occurred while saving your profile")
+                    return redirect('profile_complete')
+                    
+            except Exception as e:
+                messages.error(request, "An unexpected error occurred")
+                return redirect('profile_complete')
+                
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f"{field}: {error}")
     else:
-        messages.error(request, "An error occured")
         form = ProfileCompletionForm()
     
-    return render(request, 'profile_complete.html', {'form': form})
+    return render(request, 'profile_complete.html', {
+        'form': form,
+        'has_profile': hasattr(request.user, 'internprofile')
+    })
 
 # Location Tracking API
 @csrf_exempt
