@@ -68,7 +68,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth import get_user_model
-from .models import Organization, InternProfile, Department
+from .models import Organization, InternProfile
 from django.contrib.gis.geos import Point
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
@@ -92,58 +92,14 @@ class CustomAuthenticationForm(AuthenticationForm):
         })
     )
 
-from django import forms
-from django.contrib.auth.forms import UserCreationForm
-from .models import User, Department, Organization
-
 class InternRegistrationForm(UserCreationForm):
-    phone_number = forms.CharField(max_length=20, required=True)
-    organization = forms.ModelChoiceField(
-        queryset=Organization.objects.all(),
-        required=True
-    )
-    department = forms.ModelChoiceField(
-        queryset=Department.objects.none(),  # Will be populated in __init__
-        required=True
-    )
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(required=True)
+    last_name = forms.CharField(required=True)
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = UserCreationForm.Meta.fields + (
-            'first_name', 'last_name', 'email', 
-            'phone_number', 'organization', 'department'
-        )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        
-        # If organization is already selected (form re-display), show its departments
-        if 'organization' in self.data:
-            try:
-                org_id = int(self.data.get('organization'))
-                self.fields['department'].queryset = Department.objects.filter(
-                    organization_id=org_id,
-                    is_active=True
-                ).order_by('name')
-            except (ValueError, TypeError):
-                pass
-        elif self.instance.pk and hasattr(self.instance, 'internprofile'):
-            self.fields['department'].queryset = self.instance.internprofile.organization.departments.all()
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.is_intern = True
-        
-        if commit:
-            user.save()
-            # Create intern profile with all additional fields
-            InternProfile.objects.create(
-                user=user,
-                phone_number=self.cleaned_data['phone_number'],
-                organization=self.cleaned_data['organization'],
-                department=self.cleaned_data['department']
-            )
-        return user
+        fields = ['username', 'email', 'first_name', 'last_name', 'password1', 'password2']
     
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -156,6 +112,28 @@ class InternRegistrationForm(UserCreationForm):
             user.save()
         return user
 
+class ProfileCompletionForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # You can customize organization queryset if needed
+        self.fields['organization'].queryset = Organization.objects.all()
+    
+    
+    
+    class Meta:
+        model = InternProfile
+        fields = [ 'phone_number', 'organization']
+        widgets = {
+            
+            'organization': forms.Select(attrs={'class': 'form-control'}),
+        }
+    
+    def clean_phone_number(self):
+        phone_number = self.cleaned_data['phone_number']
+        # Add any phone number validation here
+        if not phone_number.isdigit():
+            raise forms.ValidationError("Phone number should contain only digits")
+        return phone_number
 
 class OrganizationForm(forms.ModelForm):
     class Meta:

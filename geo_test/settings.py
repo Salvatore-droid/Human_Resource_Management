@@ -143,3 +143,79 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_REDIRECT_URL = 'dashboard'  # Where to redirect after login
 LOGOUT_REDIRECT_URL = 'login'     # Where to redirect after logout
+
+
+
+JAZZMIN_SETTINGS = {
+    # ====================== Core Branding ======================
+    "site_title": "HR Nexus Admin",
+    "site_header": "HR Nexus",
+    "site_brand": "HR Nexus",
+    "site_logo": "images/hr.png",  # Path to your HR logo
+    "login_logo": "images/hr.png",  # Optional login screen logo
+    "welcome_sign": "Welcome to HR Management System",
+    "copyright": "Acme HR Solutions",
+    
+    # ====================== UI & Layout ======================
+    "theme": "slate",  # Best for HR systems (dark sidebar + light content)
+    "dark_mode_theme": None,  # Disable auto dark mode
+    "show_ui_builder": False,  # Allow admins to tweak UI
+    
+    # ====================== HR-Specific Customizations ======================
+    "icons": {
+        "auth": "fas fa-users-cog",  # People management
+        "auth.user": "fas fa-user",  # Employees
+        "auth.Group": "fas fa-users",  # Teams
+        "base.Employee": "fas fa-id-badge",  # Custom icon
+        "base.Department": "fas fa-building",
+        "base.Attendance": "fas fa-fingerprint",
+        "base.Payroll": "fas fa-money-bill-wave",
+    },
+    
+    "related_modal_active": True,  # HR systems benefit from modal popups
+    "custom_css": "css/hr_custom.css",  # For additional HR-specific styling
+    
+    # ====================== Navigation ======================
+    "order_with_respect_to": [
+        "base",
+        "auth",
+        "base.Employee",
+        "base.Department",
+        "base.Attendance",
+        "base.Payroll",
+    ],
+    
+    # ====================== HR Dashboard ======================
+    "show_sidebar": True,
+    "navigation_expanded": True,  # Expanded nav by default for quick access
+    "changeform_format": "horizontal_tabs",  # Better for employee records
+}
+
+JAZZMIN_UI_TWEAKS = {
+    # ===== Professional Color Scheme =====
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-indigo",  # Trustworthy blue
+    "accent": "accent-primary",  # HR systems look best with blue accents
+    
+    # ===== HR-Appropriate Styling =====
+    "navbar": "navbar-dark",  # Dark navbar for professionalism
+    "no_navbar_border": False,
+    "sidebar": "sidebar-dark-indigo",  # Dark sidebar reduces eye strain
+    "sidebar_nav_small_text": False,  # Better readability
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,  # Clear hierarchy for HR modules
+    
+    # ===== Data-Dense UI (HR needs tables!) =====
+    "theme": "slate",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",  # For employee actions
+        "warning": "btn-warning",  # For alerts
+        "danger": "btn-danger",  # For termination flows
+        "success": "btn-success"  # For hiring processes
+    }
+}

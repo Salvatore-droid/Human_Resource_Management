@@ -11,8 +11,7 @@ urlpatterns = [
     
     # Dashboard
     path('dashboard/', views.dashboard, name='dashboard'),
-     path('profile/complete/', views.profile_complete, name='profile_complete'),
-    path('api/departments/', views.load_departments, name='load_departments'),
+    path('profile/complete/', views.profile_complete, name='profile_complete'),
     # Location APIs
     path('update-location/', views.update_location, name='update_location'),
     path('location-history/', views.location_history, name='location_history'),

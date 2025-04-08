@@ -7,8 +7,8 @@ from django.contrib import messages
 from django.contrib.gis.geos import Point
 from django.contrib.gis.measure import D
 from geopy.geocoders import Nominatim
-from .models import User, Organization, InternProfile, LocationLog, Department
-from .forms import InternRegistrationForm, OrganizationForm, CustomAuthenticationForm
+from .models import *
+from .forms import InternRegistrationForm, OrganizationForm, CustomAuthenticationForm, ProfileCompletionForm
 from datetime import datetime, timedelta
 from django.contrib.auth import logout, authenticate, login
 
@@ -30,22 +30,16 @@ def register(request):
     if request.method == 'POST':
         form = InternRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
-            return redirect('dashboard')
+            user = form.save(commit=False)
+            user.is_intern = True
+            user.save()
+            messages.success(request, "Account created! Please complete your profile.")
+            login(request, user)  # Auto-login after registration
+            return redirect('profile_complete')
     else:
         form = InternRegistrationForm()
     
     return render(request, 'register.html', {'form': form})
-
-def load_departments(request):
-    """AJAX endpoint for loading departments"""
-    org_id = request.GET.get('organization')
-    departments = Department.objects.filter(
-        organization_id=org_id,
-        is_active=True
-    ).order_by('name')
-    return render(request, 'departments_dropdown.html', {'departments': departments})
 
 def user_login(request):
     if request.user.is_authenticated:
@@ -102,51 +96,26 @@ def dashboard(request):
         'mapbox_access_token': 'your_mapbox_access_token',
     }
     return render(request, 'dashboard.html', context)
-from django.http import JsonResponse
-from django.views.decorators.http import require_GET
-from .models import Department
 
-@require_GET
-def get_departments(request):
-    """API endpoint for fetching departments by organization"""
-    org_id = request.GET.get('organization')
-    
-    if not org_id:
-        return JsonResponse([], safe=False)
-    
-    departments = Department.objects.filter(
-        organization_id=org_id,
-        is_active=True
-    ).order_by('name').values('id', 'name')
-    
-    return JsonResponse(list(departments), safe=False)
 
+@login_required
 def profile_complete(request):
     if hasattr(request.user, 'internprofile'):
         return redirect('dashboard')
-    
+        
     if request.method == 'POST':
-        form = ProfileCompletionForm(request.POST, user=request.user)
+        form = ProfileCompletionForm(request.POST)
         if form.is_valid():
             profile = form.save(commit=False)
             profile.user = request.user
             profile.save()
+            messages.error(request, "Profile saved successfully")
             return redirect('dashboard')
     else:
-        form = ProfileCompletionForm(user=request.user)
+        messages.error(request, "An error occured")
+        form = ProfileCompletionForm()
     
-    # Get initial departments if user already has an organization selected
-    departments = []
-    if hasattr(request.user, 'internprofile') and request.user.internprofile.organization:
-        departments = Department.objects.filter(
-            organization=request.user.internprofile.organization,
-            is_active=True
-        ).order_by('name')
-    
-    return render(request, 'profile_complete.html', {
-        'form': form,
-        'departments': departments
-    })
+    return render(request, 'profile_complete.html', {'form': form})
 
 # Location Tracking API
 @csrf_exempt
