@@ -43,8 +43,8 @@ class OrganizationAdmin(GISModelAdmin):
     location_status.short_description = "Location"
 
     def get_intern_count(self, obj):
-        return obj.internprofile_set.count()
-    get_intern_count.short_description = "Interns"
+        return obj.get_intern_count()
+    get_intern_count.short_description = 'Active Interns'
 
     def geocode_selected(self, request, queryset):
         for org in queryset:

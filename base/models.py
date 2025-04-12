@@ -17,6 +17,34 @@ from django.core.validators import MinLengthValidator
 
 
 
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    is_supervisor = models.BooleanField(default=False)
+    is_intern = models.BooleanField(default=False)
+    
+    
+    
+    def __str__(self):
+        return f"Profile for {self.user.username}"
+
+
+
+class SupervisorProfile(models.Model):
+    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='supervisor_profile')
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE)
+    department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True)
+    phone = models.CharField(max_length=20)
+    
+    def __str__(self):
+        return f"{self.user_profile.user.get_full_name()} (Supervisor)"
+
+
+
+
+
+
+
 # Create your models here.
 class University(models.Model):
     name = models.CharField(max_length=200)
@@ -147,7 +175,7 @@ class Employee(models.Model):
 class Intern(models.Model):
     # User relationship
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
+        UserProfile,
         on_delete=models.CASCADE,
         related_name='intern',
         null=True
@@ -236,7 +264,7 @@ class Intern(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name}"
+        return f"{self.user_profile.user.get_full_name()} (Intern)"
 
     @property
     def full_name(self):
@@ -379,7 +407,6 @@ class CompanyProfile(models.Model):
 
 
 
-
 class Organization(models.Model):
     name = models.CharField(max_length=255)
     location = gis_models.PointField(null=True, blank=True)
@@ -420,6 +447,10 @@ class Organization(models.Model):
         except (GeocoderTimedOut, GeocoderServiceError) as e:
             logger.error(f"Geocoding failed for {self.name}: {str(e)}")
         return False
+
+    def get_intern_count(self):
+        """Returns count of active interns in this organization"""
+        return self.intern_set.filter(is_active=True).count()
 
     class Meta:
         verbose_name = "Organization"

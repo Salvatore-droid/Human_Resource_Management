@@ -287,13 +287,17 @@ def intern_list(request):
 
 @login_required
 def intern_detail(request, pk):
-    intern = get_object_or_404(InternProfile, pk=pk)
-    
-    # Verify supervisor has access to this intern
-    if (request.user.is_supervisor and 
-        request.user.supervisorprofile.organization != intern.organization):
-        messages.error(request, "You don't have permission to view this intern")
-        return redirect('intern_list')
+    intern = get_object_or_404(Intern, pk=pk)
+    # Verify permissions using the new profile structure
+    if hasattr(request.user, 'profile') and request.user.profile.is_supervisor:
+        try:
+            supervisor_org = request.user.profile.supervisor_profile.organization
+            if supervisor_org != intern.organization:
+                messages.error(request, "You don't have permission to view this intern")
+                return redirect('intern_list')
+        except AttributeError:
+            messages.error(request, "Supervisor profile not complete")
+            return redirect('intern_list')
     
     # Get time filter from query params
     time_filter = request.GET.get('time', 'today')
@@ -364,9 +368,40 @@ def edit_organization(request):
     return render(request, 'edit.html', {'form': form})
 
 # Reporting Views
+# @login_required
+# def location_history(request):
+#     intern = request.user.internprofile
+#     time_filter = request.GET.get('time', 'today')
+    
+#     if time_filter == 'week':
+#         date_filter = datetime.now() - timedelta(days=7)
+#     elif time_filter == 'month':
+#         date_filter = datetime.now() - timedelta(days=30)
+#     else:  # today
+#         date_filter = datetime.now() - timedelta(days=1)
+    
+#     locations = LocationLog.objects.filter(
+#         intern=intern,
+#         timestamp__gte=date_filter
+#     ).order_by('-timestamp')
+    
+#     return render(request, 'location_history.html', {
+#         'locations': locations,
+#         'time_filter': time_filter
+#     })
+
+
 @login_required
-def location_history(request):
-    intern = request.user.internprofile
+def location_history(request, intern_id=None):
+    # If intern_id is provided, check permissions
+    if intern_id:
+        if not request.user.is_superuser and not request.user.is_staff:
+            raise PermissionDenied
+        intern = get_object_or_404(InternProfile, id=intern_id)
+    else:
+        # For regular users, show their own history
+        intern = request.user.internprofile
+    
     time_filter = request.GET.get('time', 'today')
     
     if time_filter == 'week':
@@ -383,18 +418,52 @@ def location_history(request):
     
     return render(request, 'location_history.html', {
         'locations': locations,
-        'time_filter': time_filter
+        'time_filter': time_filter,
+        'intern': intern
     })
 
+
+# @login_required
+# def geofence_violations(request):
+#     if request.user.is_intern:
+#         intern = request.user.internprofile
+#         violations = LocationLog.objects.filter(
+#             intern=intern,
+#             is_inside_geofence=False
+#         ).order_by('-timestamp')
+#     else:  # supervisor
+#         org = request.user.supervisorprofile.organization
+#         violations = LocationLog.objects.filter(
+#             intern__organization=org,
+#             is_inside_geofence=False
+#         ).order_by('-timestamp')
+    
+#     return render(request, 'geofence_violations.html', {
+#         'violations': violations
+#     })
+
+
+
 @login_required
-def geofence_violations(request):
-    if request.user.is_intern:
+def geofence_violations(request, intern_id=None):
+    # If intern_id is provided (for supervisor viewing specific intern)
+    if intern_id:
+        if not (request.user.is_supervisor or request.user.is_staff):
+            raise PermissionDenied
+        intern = get_object_or_404(InternProfile, id=intern_id)
+        violations = LocationLog.objects.filter(
+            intern=intern,
+            is_inside_geofence=False
+        ).order_by('-timestamp')
+    # For regular intern viewing their own violations
+    elif request.user.is_intern:
         intern = request.user.internprofile
         violations = LocationLog.objects.filter(
             intern=intern,
             is_inside_geofence=False
         ).order_by('-timestamp')
-    else:  # supervisor
+    # For supervisor viewing all violations in their organization
+    else:
         org = request.user.supervisorprofile.organization
         violations = LocationLog.objects.filter(
             intern__organization=org,
@@ -402,8 +471,12 @@ def geofence_violations(request):
         ).order_by('-timestamp')
     
     return render(request, 'geofence_violations.html', {
-        'violations': violations
+        'violations': violations,
+        'specific_intern': intern if intern_id else None
     })
+
+
+
 
 def user_logout(request):
     logout(request)
