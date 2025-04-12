@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 from django.contrib.auth import logout, authenticate, login
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
 
 
 
@@ -37,7 +38,7 @@ def register(request):
             user.save()
             messages.success(request, "Account created! Please complete your profile.")
             login(request, user)  # Auto-login after registration
-            return redirect('profile_complete')
+            return redirect('send_otp')
     else:
         form = InternRegistrationForm()
     
@@ -67,92 +68,171 @@ def user_login(request):
     
     return render(request, 'login.html', {'form': form})
 
-# Dashboard Views
+
+
+
+
 @login_required
 def dashboard(request):
-    if not hasattr(request.user, 'internprofile'):
+    try:
+        intern = request.user.intern
+        org = intern.organization
+        
+        today = datetime.now().date()
+        locations = LocationLog.objects.filter(
+            intern=intern,
+            timestamp__date=today
+        ).order_by('-timestamp')[:10]
+        
+        violations_today = LocationLog.objects.filter(
+            intern=intern,
+            is_inside_geofence=False,
+            timestamp__date=today
+        ).count()
+        
+        context = {
+            'intern': intern,
+            'organization': org,
+            'locations': locations,
+            'violations_today': violations_today,
+            'mapbox_access_token': 'your_mapbox_access_token',
+        }
+        return render(request, 'dashboard.html', context)
+        
+    except Exception as e:
+        print(f"Redirecting to profile complete - {str(e)}")
         return redirect('profile_complete')
-    
-    intern = request.user.internprofile
-    org = intern.organization
-    today = datetime.now().date()
-    
-    # Get today's locations
-    locations = LocationLog.objects.filter(
-        intern=intern,
-        timestamp__date=today
-    ).order_by('-timestamp')[:10]
-    
-    # Geofence violation count
-    violations_today = LocationLog.objects.filter(
-        intern=intern,
-        is_inside_geofence=False,
-        timestamp__date=today
-    ).count()
-    
-    context = {
-        'intern': intern,
-        'organization': org,
-        'locations': locations,
-        'violations_today': violations_today,
-        'mapbox_access_token': 'your_mapbox_access_token',
-    }
-    return render(request, 'dashboard.html', context)
-
 
 @login_required
 def profile_complete(request):
-    has_profile = hasattr(request.user, 'internprofile')
-    
-    if has_profile and request.method == 'GET':
-        messages.info(request, "Your profile is already complete")
+    # Check if profile exists
+    if hasattr(request.user, 'intern'):
         return redirect('dashboard')
         
     if request.method == 'POST':
         form = ProfileCompletionForm(request.POST)
         if form.is_valid():
             try:
-                # Double-check in case of race condition
-                if hasattr(request.user, 'internprofile'):
-                    messages.warning(request, "Profile already exists")
-                    return redirect('dashboard')
-                    
                 profile = form.save(commit=False)
                 profile.user = request.user
                 
-                try:
-                    profile.full_clean()
-                    profile.save()
-                    messages.success(request, "Profile completed successfully!")
-                    return redirect('dashboard')
-                    
-                except ValidationError as e:
-                    for field, errors in e.message_dict.items():
-                        for error in errors:
-                            messages.error(request, f"{field}: {error}")
-                            
-                except IntegrityError as e:
-                    if 'base_internprofile_user_id_key' in str(e):
-                        messages.error(request, "Profile already exists for this account")
-                    else:
-                        messages.error(request, "An error occurred while saving your profile")
-                    return redirect('profile_complete')
-                    
-            except Exception as e:
-                messages.error(request, "An unexpected error occurred")
-                return redirect('profile_complete')
+                # Set required fields
+                profile.first_name = request.user.first_name
+                profile.last_name = request.user.last_name
                 
-        else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f"{field}: {error}")
+                # Set defaults for required fields if not provided
+                if not profile.department:
+                    profile.department = "Not specified"
+                
+                profile.save()
+                messages.success(request, "Profile completed successfully!")
+                return redirect('dashboard')
+                
+            except IntegrityError:
+                messages.error(request, "Profile already exists for this account")
+                return redirect('dashboard')
+                
+            except Exception as e:
+                messages.error(request, f"An error occurred: {str(e)}")
+                return redirect('profile_complete')
     else:
         form = ProfileCompletionForm()
     
-    return render(request, 'profile_complete.html', {
-        'form': form,
-        'has_profile': hasattr(request.user, 'internprofile')
-    })
+    return render(request, 'profile_complete.html', {'form': form})
+
+
+
+
+
+# Dashboard Views
+# @login_required
+# def dashboard(request):
+#     if not hasattr(request.user, 'internprofile'):
+#         return redirect('profile_complete')
+    
+#     intern = request.user.internprofile
+#     org = intern.organization
+#     today = datetime.now().date()
+    
+    
+#     locations = LocationLog.objects.filter(
+#         intern=intern,
+#         timestamp__date=today
+#     ).order_by('-timestamp')[:10]
+    
+    
+#     violations_today = LocationLog.objects.filter(
+#         intern=intern,
+#         is_inside_geofence=False,
+#         timestamp__date=today
+#     ).count()
+    
+#     context = {
+#         'intern': intern,
+#         'organization': org,
+#         'locations': locations,
+#         'violations_today': violations_today,
+#         'mapbox_access_token': 'your_mapbox_access_token',
+#     }
+#     return render(request, 'dashboard.html', context)
+
+
+# @login_required
+# def profile_complete(request):
+#     has_profile = hasattr(request.user, 'internprofile')
+    
+#     if has_profile and request.method == 'GET':
+#         messages.info(request, "Your profile is already complete")
+#         return redirect('dashboard')
+        
+#     if request.method == 'POST':
+#         form = ProfileCompletionForm(request.POST)
+#         if form.is_valid():
+#             try:
+#                 # Double-check in case of race condition
+#                 if hasattr(request.user, 'internprofile'):
+#                     messages.warning(request, "Profile already exists")
+#                     return redirect('dashboard')
+                    
+#                 profile = form.save(commit=False)
+#                 profile.user = request.user
+                
+#                 try:
+#                     if not profile.department:
+#                         profile.department = "Not specified"
+
+#                     # profile.full_clean()
+#                     profile.save()
+#                     messages.success(request, "Profile completed successfully!")
+#                     return redirect('dashboard')
+                    
+#                 except ValidationError as e:
+#                     for field, errors in e.message_dict.items():
+#                         for error in errors:
+#                             messages.error(request, f"{field}: {error}")
+                            
+#                 except IntegrityError as e:
+#                     if 'base_internprofile_user_id_key' in str(e):
+#                         messages.error(request, "Profile already exists for this account")
+#                     else:
+#                         messages.error(request, "An error occurred while saving your profile")
+#                     return redirect('profile_complete')
+                    
+#             except Exception as e:
+#                 messages.error(request, "An unexpected error occurred")
+#                 return redirect('profile_complete')
+                
+#         else:
+#             for field, errors in form.errors.items():
+#                 for error in errors:
+#                     messages.error(request, f"{field}: {error}")
+#     else:
+#         form = ProfileCompletionForm()
+    
+#     return render(request, 'profile_complete.html', {
+#         'form': form,
+#         'has_profile': hasattr(request.user, 'internprofile')
+#     })
 
 # Location Tracking API
 @csrf_exempt
@@ -329,3 +409,80 @@ def user_logout(request):
     logout(request)
     messages.success(request, "You have been successfully logged out.")
     return redirect('login')  
+
+
+
+from .forms import EmailForm, OTPForm
+import uuid
+
+def send_otp(request):
+    if request.method == 'POST':
+        form = EmailForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            try:
+                user = User.objects.get(email=email)
+                otp = OTP.generate_otp(user)
+                
+                # Send email
+                send_mail(
+                    'Your Secure OTP Code',
+                    f'Your verification code is: {otp.otp}\n\nThis code will expire in 15 minutes.',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+                
+                request.session['otp_user_id'] = user.id
+                request.session['otp_token'] = str(otp.token)
+                return redirect('verify_otp')
+            except User.DoesNotExist:
+                messages.error(request, 'No account found with this email address.')
+    else:
+        form = EmailForm()
+    
+    return render(request, 'accounts/send_otp.html', {'form': form})
+
+def verify_otp(request):
+    if 'otp_user_id' not in request.session:
+        return redirect('send_otp')
+    
+    user_id = request.session['otp_user_id']
+    otp_token = request.session.get('otp_token')
+    
+    try:
+        user = User.objects.get(id=user_id)
+        otp = OTP.objects.get(user=user, token=otp_token)
+        
+        if request.method == 'POST':
+            form = OTPForm(request.POST)
+            if form.is_valid():
+                entered_otp = form.cleaned_data['otp']
+                
+                if otp.is_expired():
+                    messages.error(request, 'OTP has expired. Please request a new one.')
+                    return redirect('send_otp')
+                
+                if otp.otp == entered_otp:
+                    otp.is_verified = True
+                    otp.save()
+                    login(request, user)
+                    del request.session['otp_user_id']
+                    del request.session['otp_token']
+                    return redirect('otp_success')
+                else:
+                    messages.error(request, 'Invalid OTP. Please try again.')
+        else:
+            form = OTPForm()
+        
+        return render(request, 'accounts/verify_otp.html', {
+            'form': form,
+            'email': user.email
+        })
+    
+    except (User.DoesNotExist, OTP.DoesNotExist):
+        messages.error(request, 'Invalid session. Please try again.')
+        return redirect('send_otp')
+
+def otp_success(request):
+    return render(request, 'accounts/otp_success.html')

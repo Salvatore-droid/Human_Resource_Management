@@ -141,7 +141,25 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-LOGIN_REDIRECT_URL = 'dashboard'  # Where to redirect after login
+AUTH_USER_EMAIL_UNIQUE = True
+
+
+# Email settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # e.g., smtp.gmail.com
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'geniusokwemba53@gmail.com'
+EMAIL_HOST_PASSWORD = 'bevbzislkpdciakm '
+DEFAULT_FROM_EMAIL = 'geniusokwemba53@gmail.com'
+
+# Session settings
+SESSION_COOKIE_AGE = 1800  # 30 minutes
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Authentication
+LOGIN_URL = 'send-otp/'
+LOGIN_REDIRECT_URL = 'otp-success/'  # Where to redirect after login
 LOGOUT_REDIRECT_URL = 'login'     # Where to redirect after logout
 
 

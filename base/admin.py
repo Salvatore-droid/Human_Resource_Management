@@ -15,125 +15,6 @@ from django.contrib import messages
 
 
 
-# class DepartmentInline(admin.TabularInline):
-#     model = Department
-#     extra = 1
-
-
-
-# @admin.register(Department)
-# class DepartmentAdmin(admin.ModelAdmin):
-#     list_display = ('name', 'code', 'organization', 'is_active')
-#     list_filter = ('organization', 'is_active')
-#     search_fields = ('name', 'code')
-
-
-
-
-
-
-# # Custom User Admin
-# @admin.register(User)
-# class CustomUserAdmin(UserAdmin):
-#     list_display = ('username', 'email', 'first_name', 'last_name', 
-#                    'is_intern', 'is_supervisor', 'is_staff')
-#     list_filter = ('is_intern', 'is_supervisor', 'is_staff', 'is_superuser')
-#     fieldsets = (
-#         (None, {'fields': ('username', 'password')}),
-#         ('Personal Info', {'fields': ('first_name', 'last_name', 'email')}),
-#         ('Permissions', {
-#             'fields': ('is_active', 'is_staff', 'is_superuser', 
-#                       'is_intern', 'is_supervisor', 'groups', 'user_permissions'),
-#         }),
-#         ('Important dates', {'fields': ('last_login', 'date_joined')}),
-#     )
-#     actions = ['mark_as_intern', 'mark_as_supervisor']
-
-#     def mark_as_intern(self, request, queryset):
-#         queryset.update(is_intern=True)
-#     mark_as_intern.short_description = "Mark selected users as interns"
-
-#     def mark_as_supervisor(self, request, queryset):
-#         queryset.update(is_supervisor=True)
-#     mark_as_supervisor.short_description = "Mark selected users as supervisors"
-
-# Organization Admin with Auto-Location
-# @admin.register(Organization)
-# class OrganizationAdmin(GISModelAdmin):
-#     list_display = ('name', 'location_preview', 'geofence_radius', 
-#                    'intern_count', 'location_source')
-#     list_editable = ('geofence_radius',)
-#     search_fields = ('name', 'address')
-#     actions = ['geocode_addresses', 'calculate_optimal_radius']
-#     readonly_fields = ('location_source',)
-#     fieldsets = (
-#         (None, {
-#             'fields': ('name', 'address', 'location_source')
-#         }),
-#         ('Location Settings', {
-#             'fields': ('location', 'geofence_radius'),
-#             'classes': ('collapse',)
-#         }),
-#     )
-
-#     def location_preview(self, obj):
-#         if obj.location:
-#             return format_html(
-#                 '<a href="https://maps.google.com/?q={},{}" target="_blank">📍 View on Map</a>',
-#                 obj.location.y, obj.location.x
-#             )
-#         return "Not set"
-#     location_preview.short_description = "Location"
-
-#     def intern_count(self, obj):
-#         return obj.internprofile_set.count()
-#     intern_count.short_description = "Interns"
-
-#     def geocode_addresses(self, request, queryset):
-#         geolocator = Nominatim(user_agent="org_locator")
-#         for org in queryset:
-#             if org.address and not org.location:
-#                 try:
-#                     location = geolocator.geocode(org.address)
-#                     if location:
-#                         org.location = Point(location.longitude, location.latitude)
-#                         org.location_source = 'geocode'
-#                         org.save()
-#                         self.message_user(request, f"Geocoded {org.name}")
-#                 except Exception as e:
-#                     self.message_user(request, f"Failed to geocode {org.name}: {str(e)}", level='error')
-#     geocode_addresses.short_description = "Geocode addresses"
-
-#     def calculate_optimal_radius(self, request, queryset):
-#         from django.contrib.gis.db.models.functions import Distance
-#         for org in queryset:
-#             if org.location:
-#                 checkins = LocationLog.objects.filter(
-#                     intern__organization=org
-#                 ).annotate(
-#                     distance=Distance('point', org.location)
-#                 ).order_by('-distance')
-                
-#                 if checkins.exists():
-#                     index = int(len(checkins) * 0.95)  # Cover 95% of checkins
-#                     org.geofence_radius = checkins[index].distance.m
-#                     org.save()
-#                     self.message_user(request, f"Updated radius for {org.name}")
-#     calculate_optimal_radius.short_description = "Calculate optimal radius"
-
-#     def save_model(self, request, obj, form, change):
-#         if not obj.location_source:
-#             if obj.location:
-#                 obj.location_source = 'manual'
-#             elif obj.address:
-#                 obj.location_source = 'geocode'
-#             else:
-#                 obj.location_source = 'pending'
-#         super().save_model(request, obj, form, change)
-
-
-
-
 
 
 @admin.register(Organization)
@@ -191,24 +72,6 @@ class OrganizationAdmin(GISModelAdmin):
 
 
 
-# # Intern Profile Admin
-# @admin.register(InternProfile)
-# class InternProfileAdmin(admin.ModelAdmin):
-#     list_display = ('user', 'organization', 'department', 'phone_number', 'is_active')
-#     list_filter = ('organization', 'department', 'is_active')
-#     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'phone_number')
-#     raw_id_fields = ('user',)
-#     list_editable = ('is_active',)
-#     actions = ['activate_profiles', 'deactivate_profiles']
-
-#     def activate_profiles(self, request, queryset):
-#         queryset.update(is_active=True)
-#     activate_profiles.short_description = "Activate selected profiles"
-
-#     def deactivate_profiles(self, request, queryset):
-#         queryset.update(is_active=False)
-#     deactivate_profiles.short_description = "Deactivate selected profiles"
-
 # Location Log Admin
 @admin.register(LocationLog)
 class LocationLogAdmin(GISModelAdmin):
@@ -246,13 +109,6 @@ from django.utils.html import format_html
 
 
 
-# class UserModel(UserAdmin):
-#     ordering = ('email',)
-
-
-
-
-
 @admin.register(University)
 class UniversityAdmin(admin.ModelAdmin):
     list_display = ('name', 'location', 'website')
@@ -262,18 +118,15 @@ class UniversityAdmin(admin.ModelAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'department_type', 'manager', 'current_headcount', 'budget', 'active')
-    list_filter = ('department_type', 'active', 'established_date')
-    search_fields = ('name', 'code', 'manager__username', 'manager__email')
-    raw_id_fields = ('manager', 'parent_department')
+    list_display = ('name', 'code', 'current_headcount', 'budget', 'active')
+    list_filter = ('active', 'established_date')
+    search_fields = ('name', 'code')
     readonly_fields = ('current_headcount', 'budget_utilization', 'created_at', 'updated_at')
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'code', 'department_type', 'description')
+            'fields': ('name', 'code', 'description')
         }),
-        ('Structure', {
-            'fields': ('manager', 'parent_department')
-        }),
+
         ('Operations', {
             'fields': ('location', 'floor', 'budget', 'headcount', 'active')
         }),
@@ -290,30 +143,6 @@ class DepartmentAdmin(admin.ModelAdmin):
     def current_headcount(self, obj):
         return obj.current_headcount
     current_headcount.short_description = 'Employees'
-
-# ====================== INTERN/EMPLOYEE MODELS ======================
-# @admin.register(Intern)
-# class InternAdmin(admin.ModelAdmin):
-#     list_display = ('name', 'email', 'get_school', 'display_image')
-#     search_fields = ('name', 'email', 'school__name')
-#     list_filter = ('school',)
-#     readonly_fields = ('display_image_preview',)
-#     exclude = ('user',) 
-#     def get_school(self, obj):
-#         return obj.school.name if obj.school else '-'
-#     get_school.short_description = 'School'
-
-#     def display_image(self, obj):
-#         if obj.image:
-#             return format_html('<img src="{}" width="50" height="50" style="border-radius: 50%; object-fit: cover;" />', obj.image.url)
-#         return "-"
-#     display_image.short_description = 'Image'
-
-#     def display_image_preview(self, obj):
-#         if obj.image:
-#             return format_html('<img src="{}" width="150" height="150" style="border-radius: 10px; object-fit: cover;" />', obj.image.url)
-#         return "No image uploaded"
-#     display_image_preview.short_description = 'Image Preview'
 
 
 
@@ -408,10 +237,7 @@ class InternAdmin(admin.ModelAdmin):
             return format_html('<img src="{}" width="50" height="50" style="border-radius: 50%; object-fit:cover;" />', obj.image.url)
         return "No Image"
 
-#     def image_preview(self, obj):
-#         if obj.image:  
-#             return format_html('<img src="{}" width="150" height="150" style="border-radius: 10px; object-fit:cover;" />', obj.image.url)
-#         return "No Image"
+
 
     display_image.short_description = 'Image' 
 

@@ -40,25 +40,31 @@
         {% csrf_token %}
         <div class="rounded-md shadow-sm space-y-4">
           <div>
-            <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-            {{ form.phone_number }}
+            <label for="{{ form.department.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Department (Optional)</label>
+            {{ form.department }}
           </div>
           
           <div>
-            <label for="{{ form.organization.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Organization</label>
+            <label for="{{ form.phone_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Phone Number*</label>
+            {{ form.phone_number }}
+            {% if form.phone_number.errors %}
+              <div class="text-red-500 text-xs mt-1">{{ form.phone_number.errors }}</div>
+            {% endif %}
+          </div>
+          
+          <div>
+            <label for="{{ form.organization.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">Organization*</label>
             {{ form.organization }}
+            {% if form.organization.errors %}
+              <div class="text-red-500 text-xs mt-1">{{ form.organization.errors }}</div>
+            {% endif %}
           </div>
         </div>
 
-        <div class="flex space-x-4">
+        <div>
           <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">
             Complete Profile
           </button>
-          {% comment %}
-          <a href="{% url 'dashboard' %}" class="w-full bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 text-center">
-            Skip for Now
-          </a>
-          {% endcomment %}
         </div>
       </form>
     {% endif %}

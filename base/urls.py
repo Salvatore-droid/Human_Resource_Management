@@ -22,4 +22,9 @@ urlpatterns = [
     # Intern Management
     path('interns/', views.intern_list, name='intern_list'),
     path('interns/<int:pk>/', views.intern_detail, name='intern_detail'),
+
+    # otp
+    path('send-otp/', views.send_otp, name='send_otp'),
+    path('verify-otp/', views.verify_otp, name='verify_otp'),
+    path('otp-success/', views.otp_success, name='otp_success'),
 ]

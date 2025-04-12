@@ -6,7 +6,14 @@ from django.contrib.auth.models import UserManager
 from django.dispatch import receiver
 from django.db.models.signals import post_save
 from django.contrib.auth.models import User
-
+import random
+import uuid
+from django.contrib.gis.db import models as gis_models
+from django.contrib.gis.geos import Point
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+import logging
+from django.core.validators import MinLengthValidator
 
 
 
@@ -26,167 +33,14 @@ class University(models.Model):
 
 
 
-class Intern(models.Model):
-    # Personal Information
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='intern_profile'
-    )
-    first_name = models.CharField(max_length=50, null=True)
-    last_name = models.CharField(max_length=50, null=True)
-    date_of_birth = models.DateField(null=True, blank=True)
-    GENDER_CHOICES = [
-        ('M', 'Male'),
-        ('F', 'Female'),
-        ('O', 'Other'),
-        ('U', 'Prefer not to say'),
-    ]
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True)
-    image = models.ImageField(
-        null=True,
-        blank=True
-    )
-    
-    # Contact Information
-    personal_email = models.EmailField(unique=True, null=True)
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
-    emergency_contact_phone = models.CharField(max_length=20, blank=True, null=True)
-    address = models.TextField(blank=True)
-    
-    # Academic Information
-    university = models.ForeignKey(
-        'University',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-    degree_program = models.CharField(max_length=100, blank=True)
-    current_year = models.PositiveSmallIntegerField(null=True, blank=True)
-    expected_graduation = models.DateField(null=True, blank=True)
-    transcript = models.FileField(
-        upload_to='interns/transcripts/',
-        null=True,
-        blank=True
-    )
-    
-    # Internship Details
-    department = models.ForeignKey(
-        'Department',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-    internship_start_date = models.DateField(null=True)
-    internship_end_date = models.DateField(null=True)
-    mentor = models.ForeignKey(
-        'Employee',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='mentored_interns'
-    )
-    INTERNSHIP_STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('completed', 'Completed'),
-        ('terminated', 'Terminated'),
-        ('extended', 'Extended'),
-    ]
-    status = models.CharField(
-        max_length=20,
-        choices=INTERNSHIP_STATUS_CHOICES,
-        default='active'
-    )
-    
-    # HR Administration
-    stipend_amount = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-    bank_account_number = models.CharField(max_length=50, blank=True)
-    bank_name = models.CharField(max_length=100, blank=True)
-    resume = models.FileField(
-        upload_to='interns/resumes/',
-        null=True,
-        blank=True
-    )
-    
-    # System Fields
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True)
-    is_active = models.BooleanField(default=True)
-
-    class Meta:
-        ordering = ['first_name']
-        verbose_name = 'Intern'
-        verbose_name_plural = 'Interns'
-        permissions = [
-            ('manage_interns', 'Can manage all intern records'),
-        ]
-
-    def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.university})"
-    
-    @property
-    def full_name(self):
-        return f"{self.first_name} {self.last_name}"
-    
-    @property
-    def internship_duration(self):
-        return (self.internship_end_date - self.internship_start_date).days
-    
-    @property
-    def days_remaining(self):
-        if self.status == 'active':
-            return (self.internship_end_date, timezone.now().date()).days
-        return 0
-    
-    @property
-    def age(self):
-        if self.date_of_birth:
-            today = timezone.now().date()
-            return today.year - self.date_of_birth.year - (
-                (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
-            )
-        return None
 
 
-from django.db import models
-from django.conf import settings
+
 
 class Department(models.Model):
-    DEPARTMENT_TYPES = [
-        ('HR', 'Human Resources'),
-        ('IT', 'Information Technology'),
-        ('FIN', 'Finance'),
-        ('OPS', 'Operations'),
-        ('MKT', 'Marketing'),
-        ('SALES', 'Sales'),
-        ('R&D', 'Research & Development'),
-    ]
-    
     # Basic Information
     name = models.CharField(max_length=100, unique=True, null=True)
-    department_type = models.CharField(
-        max_length=10,
-        choices=DEPARTMENT_TYPES,
-        default='HR'
-    )
     code = models.CharField(max_length=10, unique=True, help_text="Short department code (e.g., HR-001)", null=True)
-    
-    # Management Structure
-    manager = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='managed_departments'
-    )
     parent_department = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -263,6 +117,11 @@ class Department(models.Model):
             return (total_salaries / self.budget) * 100
         return 0
 
+
+
+
+
+
 class Employee(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=20, null=True)
@@ -277,6 +136,136 @@ class Employee(models.Model):
 
     def __str__(self):
         return self.employee_id
+
+
+
+
+
+
+
+
+class Intern(models.Model):
+    # User relationship
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='intern',
+        null=True
+    )
+    
+    # Personal Information
+    first_name = models.CharField(max_length=50, null=True)
+    last_name = models.CharField(max_length=50, null=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+        ('U', 'Prefer not to say'),
+    ]
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
+    image = models.ImageField(upload_to='interns/images/', null=True, blank=True)
+    
+    # Contact Information
+    personal_email = models.EmailField(unique=True, null=True)
+    phone_number = models.CharField(max_length=20, null=True)
+    emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
+    emergency_contact_phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    
+    # Organization Information (moved from InternProfile)
+    organization = models.ForeignKey('Organization', on_delete=models.CASCADE, null=True)
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, null=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Academic Information
+    university = models.ForeignKey(
+        'University',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    degree_program = models.CharField(max_length=100, blank=True, null=True)
+    current_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    expected_graduation = models.DateField(null=True, blank=True)
+    transcript = models.FileField(upload_to='interns/transcripts/', null=True, blank=True)
+    
+    # Internship Details
+    internship_start_date = models.DateField(null=True)
+    internship_end_date = models.DateField(null=True)
+    mentor = models.ForeignKey(
+        'Employee',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mentored_interns'
+    )
+    INTERNSHIP_STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('terminated', 'Terminated'),
+        ('extended', 'Extended'),
+    ]
+    status = models.CharField(
+        max_length=20,
+        choices=INTERNSHIP_STATUS_CHOICES,
+        default='active'
+    )
+    
+    # HR Administration
+    stipend_amount = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    bank_account_number = models.CharField(max_length=50, blank=True, null=True)
+    bank_name = models.CharField(max_length=100, blank=True, null=True)
+    resume = models.FileField(upload_to='interns/resumes/', null=True, blank=True)
+    
+    # System Fields
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    class Meta:
+        ordering = ['first_name']
+        verbose_name = 'Intern'
+        verbose_name_plural = 'Interns'
+        permissions = [
+            ('manage_interns', 'Can manage all intern records'),
+        ]
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+    
+    @property
+    def internship_duration(self):
+        return (self.internship_end_date - self.internship_start_date).days
+    
+    @property
+    def days_remaining(self):
+        if self.status == 'active':
+            return (self.internship_end_date - timezone.now().date()).days
+        return 0
+    
+    @property
+    def age(self):
+        if self.date_of_birth:
+            today = timezone.now().date()
+            return today.year - self.date_of_birth.year - (
+                (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
+            )
+        return None
+
+        
+
+
+
+
 
 
 
@@ -389,75 +378,7 @@ class CompanyProfile(models.Model):
 
 
 
-from django.db import models
-# from django.contrib.auth.models import AbstractUser
-from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.geos import Point
-from django.conf import settings
-from geopy.geocoders import Nominatim
-from geopy.exc import GeocoderTimedOut, GeocoderServiceError
-import logging
-from django.core.validators import MinLengthValidator
 
-# class User(AbstractUser):
-#     is_intern = models.BooleanField(default=False)
-#     is_supervisor = models.BooleanField(default=False)
-
-
-#     class Meta:
-#         # Add this to avoid clashes
-#         swappable = 'AUTH_USER_MODEL'
-    
-#     # Specify unique related_names
-#     groups = models.ManyToManyField(
-#         'auth.Group',
-#         verbose_name='groups',
-#         blank=True,
-#         help_text='The groups this user belongs to.',
-#         related_name='base_user_set',  # Changed from 'user_set'
-#         related_query_name='user'
-#     )
-#     user_permissions = models.ManyToManyField(
-#         'auth.Permission',
-#         verbose_name='user permissions',
-#         blank=True,
-#         help_text='Specific permissions for this user.',
-#         related_name='base_user_set',  # Changed from 'user_set'
-#         related_query_name='user'
-#     )
-
-
-
-
-
-
-
-
-# logger = logging.getLogger(__name__)
-
-
-
-
-# class Department(models.Model):
-#     organization = models.ForeignKey(
-#         'Organization', 
-#         on_delete=models.CASCADE,
-#         related_name='departments'
-#     )
-#     name = models.CharField(max_length=100)
-#     code = models.CharField(
-#         max_length=10,
-#         validators=[MinLengthValidator(2)],
-#         unique=True
-#     )
-#     is_active = models.BooleanField(default=True)
-
-#     class Meta:
-#         ordering = ['name']
-#         unique_together = ('organization', 'name')
-
-#     def __str__(self):
-#         return f"{self.name} ({self.organization})"
 
 class Organization(models.Model):
     name = models.CharField(max_length=255)
@@ -490,7 +411,7 @@ class Organization(models.Model):
     
     def geocode_from_address(self):
         try:
-            geolocator = Nominatim(user_agent="your_app_name")
+            geolocator = Nominatim(user_agent="base")
             location = geolocator.geocode(self.address)
             if location:
                 self.location = Point(location.longitude, location.latitude)
@@ -506,47 +427,6 @@ class Organization(models.Model):
 
 
 
-
-# class Organization(models.Model):
-#     name = models.CharField(max_length=255)
-#     location = gis_models.PointField(null=True, blank=True)
-#     geofence_radius = models.PositiveIntegerField(
-#         default=100,  # Default 100m radius
-#         help_text="Radius in meters"
-#     )
-#     address = models.TextField(blank=True)
-    
-#     AUTO_LOCATION_CHOICES = [
-#         ('manual', 'Manual Entry'),
-#         ('geocode', 'Geocode from Address'),
-#         ('first_checkin', 'Derive from First Intern Check-in')
-#     ]
-#     location_source = models.CharField(
-#         max_length=20,
-#         choices=AUTO_LOCATION_CHOICES,
-#         default='first_checkin'
-#     )
-
-#     def save(self, *args, **kwargs):
-#         if self.location_source == 'geocode' and self.address:
-#             self.geocode_from_address()
-#         super().save(*args, **kwargs)
-    
-#     def geocode_from_address(self):
-#         geolocator = Nominatim(user_agent="org_locator")
-#         location = geolocator.geocode(self.address)
-#         if location:
-# #             self.location = Point(location.longitude, location.latitude)
-
-class InternProfile(models.Model):
-    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,related_name='intern_additional_profile')
-    department = models.CharField(max_length=100)
-    phone_number = models.CharField(max_length=20)
-    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
-    is_active = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.user.get_full_name()} ({self.department})"
 
     
 
@@ -564,3 +444,29 @@ class LocationLog(models.Model):
     def __str__(self):
         status = "Inside" if self.is_inside_geofence else "Outside"
         return f"{self.intern} at {self.point} ({status})"
+
+
+
+
+
+
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    otp = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_verified = models.BooleanField(default=False)
+    token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+
+    @classmethod
+    def generate_otp(cls, user):
+        # Delete expired OTPs
+        cls.objects.filter(user=user, expires_at__lt=timezone.now()).delete()
+        
+        # Generate 6-digit OTP
+        otp = str(random.randint(100000, 999999))
+        expires_at = timezone.now() + timezone.timedelta(minutes=15)
+        return cls.objects.create(user=user, otp=otp, expires_at=expires_at)
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
