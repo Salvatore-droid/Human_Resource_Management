@@ -11,11 +11,13 @@ django-jazzmin==3.0.1
 djangorestframework==3.16.0
 geographiclib==2.0
 geopy==2.4.1
+gunicorn==23.0.0
 idna==3.10
 iso3166==2.1.1
 jmespath==1.0.1
 mapbox==0.18.1
 msgpack==1.1.0
+packaging==24.2
 pillow==11.1.0
 polyline==2.0.2
 psycopg2==2.9.10
