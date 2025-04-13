@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-xxdsg2epffv4xvj=of7@a!3qjy(nn!_r^+r_4=4m0q$4!8*u%@
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -102,16 +102,30 @@ GEOPY_USER_AGENT = "base"  # Required for Nominatim
 # }
 
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
+#         'NAME': 'biometrics_tech',
+#         'USER': 'webauthn_user',
+#         'PASSWORD': 'FxArNKGA4xTplFZdL67IEh1jCxEwjbkp',
+#         'HOST': 'dpg-cvtuqcadbo4c739bfa7g-a',
+#         'PORT': '5432',
+#     }
+# }
+
+
+import os
+import dj_database_url
+
+# Replace DATABASES with:
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'biometrics_tech',
-        'USER': 'webauthn_user',
-        'PASSWORD': 'FxArNKGA4xTplFZdL67IEh1jCxEwjbkp',
-        'HOST': 'dpg-cvtuqcadbo4c739bfa7g-a',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+    )
 }
+
+
 
 
 # Password validation
