@@ -53,8 +53,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Your React app
-    "http://localhost:5173",
+    # "http://localhost:3000",  
+    # "http://localhost:5173",
+    'https://figerprint-auther-backend.onrender.com',
+    'https://fingerprint-auther-frontend.onrender.com'
 ]
 
 MIDDLEWARE = [
