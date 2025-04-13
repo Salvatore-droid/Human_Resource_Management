@@ -559,3 +559,69 @@ def verify_otp(request):
 
 def otp_success(request):
     return render(request, 'accounts/otp_success.html')
+
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User
+from .models import WebAuthnCredential
+import json
+
+@csrf_exempt
+def check_user(request):
+    if request.method == 'GET':
+        email = request.GET.get('email')
+        exists = User.objects.filter(email=email).exists()
+        return JsonResponse({'exists': exists})
+
+@csrf_exempt
+def register_credential(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user = User.objects.get(email=data['email'])
+            
+            WebAuthnCredential.objects.create(
+                user=user,
+                credential_id=data['credential_id'],
+                public_key=data['public_key'],
+                counter=data['counter'],
+                device_type=data['device_type'],
+                backed_up=data['backed_up'],
+                transports=data['transports']
+            )
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+def get_credentials(request):
+    if request.method == 'GET':
+        email = request.GET.get('email')
+        try:
+            user = User.objects.get(email=email)
+            credentials = WebAuthnCredential.objects.filter(user=user)
+            creds_list = [{
+                'id': cred.credential_id,
+                'transports': cred.transports
+            } for cred in credentials]
+            return JsonResponse({'credentials': creds_list})
+        except User.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
+
+@csrf_exempt
+def update_counter(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user = User.objects.get(email=data['email'])
+            credential = WebAuthnCredential.objects.get(
+                user=user,
+                credential_id=data['credential_id']
+            )
+            credential.counter = data['new_counter']
+            credential.save()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)

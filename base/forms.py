@@ -62,10 +62,19 @@ class ProfileCompletionForm(forms.ModelForm):
         
     def clean_phone_number(self):
         phone_number = self.cleaned_data['phone_number']
-        if not phone_number.isdigit():
-            raise forms.ValidationError("Phone number should contain only digits")
+        
+        # Remove any whitespace or special characters that might have been added
+        phone_number = ''.join(filter(str.isdigit, phone_number))
+        
+        # Check if the number starts with 254 and has exactly 12 digits (254 + 9)
+        if not (phone_number.startswith('254') and len(phone_number) == 12):
+            raise forms.ValidationError(
+                "Phone number must start with country code 254 followed by 9 digits (e.g., 254712345678)"
+            )
+            
         return phone_number
 
+        
 class OrganizationForm(forms.ModelForm):
     class Meta:
         model = Organization

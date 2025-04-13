@@ -175,7 +175,7 @@ class Employee(models.Model):
 class Intern(models.Model):
     # User relationship
     user = models.OneToOneField(
-        UserProfile,
+        User,
         on_delete=models.CASCADE,
         related_name='intern',
         null=True
@@ -264,7 +264,7 @@ class Intern(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user_profile.user.get_full_name()} (Intern)"
+        return f"{self.first_name}"
 
     @property
     def full_name(self):
@@ -501,3 +501,20 @@ class OTP(models.Model):
     
     def is_expired(self):
         return timezone.now() > self.expires_at
+
+
+# models.py
+from django.db import models
+from django.contrib.auth.models import User
+
+class WebAuthnCredential(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    credential_id = models.TextField()  # Stores the Base64 encoded credential ID
+    public_key = models.TextField()  # Stores the Base64 encoded public key
+    counter = models.IntegerField()
+    device_type = models.CharField(max_length=100)
+    backed_up = models.BooleanField()
+    transports = models.JSONField(default=list)
+    
+    class Meta:
+        unique_together = ('user', 'credential_id')

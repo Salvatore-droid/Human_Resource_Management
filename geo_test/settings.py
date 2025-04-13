@@ -37,9 +37,24 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'corsheaders',
+    'rest_framework',
+    'rest_framework.authtoken',
     'django.contrib.staticfiles',
     'django.contrib.gis',
     'base'
+]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        # or 'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+}
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Your React app
+    "http://localhost:5173",
 ]
 
 MIDDLEWARE = [
