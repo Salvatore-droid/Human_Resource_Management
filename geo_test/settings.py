@@ -12,8 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
-import os
-import dj_database_url
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -56,10 +55,10 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    # "http://localhost:3000",  
-    # "http://localhost:5173",
-    'https://figerprint-auther-backend.onrender.com',
-    'https://fingerprint-auther-frontend.onrender.com'
+    "http://localhost:3000",  
+    "http://localhost:5173",
+    # 'https://figerprint-auther-backend.onrender.com',
+    # 'https://fingerprint-auther-frontend.onrender.com'
 ]
 
 MIDDLEWARE = [
@@ -108,26 +107,20 @@ GEOPY_USER_AGENT = "base"  # Required for Nominatim
 # }
 
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-#         'NAME': 'biometrics_tech',
-#         'USER': 'webauthn_user',
-#         'PASSWORD': 'FxArNKGA4xTplFZdL67IEh1jCxEwjbkp',
-#         'HOST': 'dpg-cvtuqcadbo4c739bfa7g-a',
-#         'PORT': '5432',
-#     }
-# }
-
-
-
-# Replace DATABASES with:
 DATABASES = {
-    'default': dj_database_url.config(
-        default='postgresql://webauthn_user:FxArNKGA4xTplFZdL67IEh1jCxEwjbkp@dpg-cvtuqcadbo4c739bfa7g-a.oregon-postgres.render.com/biometrics_tech',
-        conn_max_age=600,
-    )
+    'default': {
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': 'fingerprint',
+        'USER': 'fingerprint_user',
+        'PASSWORD': 'genius',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
 }
+
+
+
+
 
 
 
