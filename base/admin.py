@@ -16,6 +16,55 @@ from django.contrib import messages
 
 
 
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
+from .models import UserProfile, SupervisorProfile
+
+# Define an inline admin descriptor for UserProfile
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'Profile'
+    fk_name = 'user'
+
+# Define a new User admin
+class UserAdmin(BaseUserAdmin):
+    inlines = (UserProfileInline,)
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_is_supervisor', 'get_is_intern')
+    list_select_related = ('profile',)
+
+    def get_is_supervisor(self, instance):
+        return instance.profile.is_supervisor
+    get_is_supervisor.short_description = 'Is Supervisor'
+    get_is_supervisor.boolean = True
+
+    def get_is_intern(self, instance):
+        return instance.profile.is_intern
+    get_is_intern.short_description = 'Is Intern'
+    get_is_intern.boolean = True
+
+    def get_inline_instances(self, request, obj=None):
+        if not obj:
+            return list()
+        return super().get_inline_instances(request, obj)
+
+@admin.register(SupervisorProfile)
+class SupervisorProfileAdmin(admin.ModelAdmin):
+    list_display = ('user_profile', 'organization', 'department', 'phone')
+    list_filter = ('organization', 'department')
+    search_fields = ('user_profile__user__username', 'user_profile__user__first_name', 
+                    'user_profile__user__last_name', 'phone')
+    raw_id_fields = ('user_profile',)
+
+# Re-register UserAdmin
+admin.site.unregister(User)
+admin.site.register(User, UserAdmin)
+
+
+
+
+
 
 @admin.register(Organization)
 class OrganizationAdmin(GISModelAdmin):
@@ -390,3 +439,55 @@ class CompanyProfileAdmin(admin.ModelAdmin):
         return "No logo uploaded"
     logo_preview.short_description = 'Logo Preview'
 
+from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
+from .models import WebAuthnCredential
+
+@admin.register(WebAuthnCredential)
+class WebAuthnCredentialAdmin(admin.ModelAdmin):
+    # Display fields in list view
+    list_display = ('user', 'device_type', 'counter', 'backed_up', 'credential_id_short')
+    list_filter = ('device_type', 'backed_up')
+    search_fields = ('user__username', 'device_type', 'credential_id')
+    raw_id_fields = ('user',)
+    readonly_fields = ('credential_id_full', 'public_key_preview', 'transports_display')
+    
+    # Fieldsets for detail view
+    fieldsets = (
+        ('User Information', {
+            'fields': ('user', 'device_type', 'counter', 'backed_up')
+        }),
+        ('Security Credentials', {
+            'fields': ('credential_id_full', 'public_key_preview', 'transports_display'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def credential_id_short(self, obj):
+        """Display shortened version of credential ID for list view"""
+        return f"{obj.credential_id[:20]}..." if len(obj.credential_id) > 20 else obj.credential_id
+    credential_id_short.short_description = 'Credential ID'
+    
+    def credential_id_full(self, obj):
+        """Display full credential ID in detail view"""
+        return obj.credential_id
+    credential_id_full.short_description = 'Full Credential ID'
+    
+    def public_key_preview(self, obj):
+        """Display shortened public key"""
+        return f"{obj.public_key[:50]}..." if len(obj.public_key) > 50 else obj.public_key
+    public_key_preview.short_description = 'Public Key (Preview)'
+    
+    def transports_display(self, obj):
+        """Display transports in a readable format"""
+        return ", ".join(obj.transports) if obj.transports else "None"
+    transports_display.short_description = 'Transports'
+    
+    # Add user's username to the autocomplete lookups
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        try:
+            queryset |= self.model.objects.filter(user__username__icontains=search_term)
+        except:
+            pass
+        return queryset, use_distinct

@@ -14,6 +14,7 @@ from django.contrib.auth import logout, authenticate, login
 from django.db import IntegrityError
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
+from django.core.exceptions import PermissionDenied
 
 
 
@@ -238,37 +239,61 @@ def profile_complete(request):
 @csrf_exempt
 @login_required
 def update_location(request):
-    if request.method == 'POST':
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    try:
+        # Ensure proper JSON content
+        if not request.body:
+            return JsonResponse({'status': 'error', 'message': 'Empty request body'}, status=400)
+
         try:
             data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+
+        # Validate required fields
+        if 'latitude' not in data or 'longitude' not in data:
+            return JsonResponse({'status': 'error', 'message': 'Missing latitude/longitude'}, status=400)
+
+        try:
             lat = float(data['latitude'])
             lng = float(data['longitude'])
             point = Point(lng, lat, srid=4326)
-            
-            intern = request.user.internprofile
-            org = intern.organization
-            
-            # Check geofence status
-            is_inside = check_geofence(point, org)
-            address = get_address_from_coords(lat, lng)
-            
-            # Save location
-            LocationLog.objects.create(
-                intern=intern,
-                point=point,
-                accuracy=data.get('accuracy'),
-                address=address,
-                is_inside_geofence=is_inside
-            )
-            
-            return JsonResponse({
-                'status': 'success',
-                'is_inside': is_inside,
-                'address': address
-            })
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    return JsonResponse({'status': 'error'}, status=405)
+        except (ValueError, TypeError):
+            return JsonResponse({'status': 'error', 'message': 'Invalid coordinates'}, status=400)
+
+        # Check user profile
+        if not hasattr(request.user, 'internprofile'):
+            return JsonResponse({'status': 'error', 'message': 'User has no intern profile'}, status=400)
+
+        intern = request.user.internprofile
+        
+        # Check if organization exists
+        if not intern.organization:
+            return JsonResponse({'status': 'error', 'message': 'No organization assigned'}, status=400)
+
+        # Get address and check geofence
+        address = get_address_from_coords(lat, lng) or "Unknown"
+        is_inside = check_geofence(point, intern.organization)
+
+        # Save location
+        LocationLog.objects.create(
+            intern=intern,
+            point=point,
+            accuracy=data.get('accuracy'),
+            address=address,
+            is_inside_geofence=is_inside
+        )
+
+        return JsonResponse({
+            'status': 'success',
+            'is_inside': is_inside,
+            'address': address
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 # Intern Management
 @login_required
@@ -392,12 +417,12 @@ def edit_organization(request):
 
 
 @login_required
-def location_history(request, intern_id=None):
+def location_history(request, pk=None):
     # If intern_id is provided, check permissions
-    if intern_id:
+    if pk:
         if not request.user.is_superuser and not request.user.is_staff:
             raise PermissionDenied
-        intern = get_object_or_404(InternProfile, id=intern_id)
+        intern = get_object_or_404(InternProfile, id=pk)
     else:
         # For regular users, show their own history
         intern = request.user.internprofile
