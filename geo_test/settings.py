@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+import os
+import dj_database_url
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -117,13 +120,11 @@ GEOPY_USER_AGENT = "base"  # Required for Nominatim
 # }
 
 
-import os
-import dj_database_url
 
 # Replace DATABASES with:
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
+        default='postgresql://webauthn_user:FxArNKGA4xTplFZdL67IEh1jCxEwjbkp@dpg-cvtuqcadbo4c739bfa7g-a.oregon-postgres.render.com/biometrics_tech',
         conn_max_age=600,
     )
 }
